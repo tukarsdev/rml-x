@@ -1,0 +1,230 @@
+[The following is a prompt for AI, to help the intial brainstorming]
+[The spec is (hopefully) detailed enough]
+
+I want to write a parser for a UI language I am writing on.
+Here is some example syntax:
+```
+# A comment
+Document {
+	Version(1);
+	Head {
+		Script(src="main.rmx");
+        Link(rel="icon", href="favicon.ico");
+        Title { "Example Application" }	
+	},
+	Body {
+		"\tHello World! Bob says: \"Hi!\"",
+		"""
+		An example multi-line
+		Can have "simple quotes"
+		""",
+		Text(group="styled") {
+			"Abc"
+		}, # trailing comma is fine
+	}
+}
+```
+
+Note that a Node in it's full form will be:
+`Node(attribute=value) { ... }`
+Where `...` indicates children nodes. The attribute list may also be empty.
+Some nodes do not need children, there is the short form:
+`Node(attribute=value);`
+`Node(attribute=value),`
+Where the `;` indicates that this node has no children.
+Some nodes do not have any attributes, and this is also valid:
+`Node { ... }`
+So there are three possible forms a standard node may appear as.
+Children nodes are terminated with either a comma or a semi-colon (equivalent).
+The last terminator in a child list is optional.
+Short form attributes always require a terminator, even if they are the last item in a list.
+There is an implicit root node, the actual source can have multiple "root" nodes:
+```
+A {}
+B {}
+```
+Becomes [Root, A, B], where Root has children A, B.
+The root node is not special. It is just a regular node with the tag "root" that is automatically created when parsing the source. It is the ancestor of all nodes.
+
+Strings are also considered a node, but a special form of node (that does not have children)
+They have 7 possible forms:
+* "String"
+* """
+  Multi-line string
+  """
+* 'String'
+* '''
+  Multi-line string
+  '''
+* `Block`
+* ```
+  Code block
+  ```
+* lang```
+  Code block with specified language
+  ```
+
+In terms of the type system, a Node can be an Element, Text (quotes and apostrophes), a Block, or a CodeBlock. The codeblock uses a String to indicate the language (the empty string if none is specified).
+It is important to store the language after parsing, so that a consumer can apply syntax highlighting.
+Language identifiers must be alphanumeric (but cannot start with a number).
+
+```rs
+pub enum Node {
+    Element {
+		tag: String,
+		attributes: HashMap<String, Value>,
+		children: Vec<Node>,
+		span: Span,
+    },
+	Text {
+		content: String,
+		span: Span,
+	},
+	Block {
+	    content: String,
+		span: Span,
+	},
+	CodeBlock {
+	    content: String,
+		language: String,
+		span: Span,
+	}
+}
+```
+This is a suggested enum type, where span represents a mapping to the source code for error reporting.
+(You do not have to use this exact structure).
+
+Multi line strings *can* appear like this:
+"""A multi line string"""
+Note that this is parsed the same as:
+"""
+A multi line string
+"""
+In essence, the expected behaviour is that it will be put on a new line, so if the first character is a new line, we can ignore it, but we do *not* ignore any subsequent new lines.
+It is a similar rule for the last new line in a multi line string. We expect there will be a new line at the end of a multi line string, so we ignore the last one. We do not ignore any before that.
+So for example:
+```
+"""
+A multi-line string
+"""
+```
+Has the data representation: "A multi-line string"
+But the input:
+```
+"""
+
+A multi-line string
+
+"""
+```
+Has the data representation: "\nA multi-line string\n"
+And for avoidance of doubt, the following input:
+```
+"""A multi-line string"""
+```
+Has the data representation: "A multi-line string"
+This is the same as the first, due to the rules of ignoring the first and last newlines.
+
+A mutli line string *may* contain a backslash as the very last character on a line.
+When this happens, this means ignore the new line, as if it was written on the same line, for example:
+```
+"""
+to be, or not to be, \
+that's the question
+"""
+```
+Has the data representation: "to be, or not to be, that's the question"
+You will notice, there is no new line character.
+
+Escaping quotes or apostrophes in strings can be done using the backslash character:
+```
+"He said \"Hello!\""
+```
+Strings can contain characters like "\t", "\n", "\\" etc.
+Back tick strings are "raw strings".
+
+Single line comments appear like python, with the `#` symbol. The comment ends when a new line is encountered.
+A multi line comment begins with `#[` and ends with `]#`.
+
+A node can contain nodes or strings, for example:
+```
+A {
+  B {}
+  "Hello"
+}
+```
+It is not necessarily new line terminated to tell the boundaries between values. For example, the above is equivalent to:
+```
+A { B {} "Hello" }
+```
+
+When it comes to attributes, the situation needs to be precisely defined:
+An element may have zero or more attributes, attributes are key, value pairs, but an element may have only ONE value that does not have a key (the default key-value pair), for example, as seen in:
+```
+Version(1);
+```
+`1` appears as the value for the default key.
+(this default key concept is very useful for brevity)
+The default key is simply the empty string `""`, since it is impossible to create this attribrute in the source file otherwise.
+
+An attribute key value pair is between a string and a *value*. A value may be of the following types:
+* String (e.g. "favicon.ico") - These are restricted strings, multi-lines are NOT allowed here.
+* Number (e.g. `100` - more details later)
+* Boolean (e.g. `true` or `false`)
+* nil (e.g. `none`)
+
+A value should be represented using a sum type (discriminated union).
+
+When it comes to number, if there is no decimal point, it is parsed as an integer, if there is a decimal, it is parsed as a floating point number. The standard specifies that the minimum integer size is 32 bit signed integer, and the floating point is at least 32 bits (float), but the preferred size is 64 bits for both.
+It should support positive and negative numbers, for example:
+`A(y=64);`
+`A(y=-64);`
+And as an example of a floating point number:
+`A(y=0.0;)`
+`A(y=-1024.5);`
+It should support the "e" scientific notation:
+`A(y=10e3);`
+`A(y=10e-3);`
+It should support underscore separation of large numbers:
+`A(y=100_000_000);`
+`A(y=1_0_0000_00);`
+A number may not begin or end with an underscore.
+The following are also valid:
+* .5
+* 1.
+
+
+Attributes are separated by commas.
+`A(width=100, height=200);`
+A trailing comma is optional.
+
+Attribute keys may contain dashes `-` and underscores `_`, for example, the following are valid attribute names:
+* --abc
+* abc--
+* ab-c
+* ab---c
+* ---ab-c---
+* __abc
+* abc__
+* __ab_c__
+
+Attribute keys cannot start with a number.
+
+
+
+There are no embedded scripts or style sheets.
+
+First of all, let me know what you think of this design, and if you need any clarification on the standard.
+
+I was thinking of attempting to implement this in Rust.
+When it comes to parsing, I want to ideally do it in an iterative manner rather than a recursive manner to avoid stack overflow.
+If possible, we should consider combining the lexing and parsing into one step, so it's source code into data immediately. However, with the flatter iterative approach, it is probably expected we might have some intermediary stack as the file is being parsed (if that is necessary).
+
+I was thinking the easiest structure is using a tree where each node stores its children as id's into a tree, and the tree itself stores nodes in a `Vec<Node>`, since it only appends new nodes as it processes data.
+Essentially an Arena implementation, if one already exists, we should definitely use it.
+
+You should indicate the file structure where possible.
+I think first we should start with planning the fundamental data types, create skeleton functions, and map out the data flow, and then implement in a later step.
+
+
+

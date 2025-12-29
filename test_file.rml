@@ -12,6 +12,7 @@ Document {
                 "Hello 2"
                 "\"Hello World!\""
                 js```
+                // A code block with an indicated language
                 function main() {
                     var x = true;
                 }
@@ -22,6 +23,15 @@ Document {
                 Containing
                 a bit of text
                 """
+                ```
+                A code block with no formatting
+                ```
+                'Alternative String'
+                '''
+                Alternative multi-line string
+                '''
+                """Legal for multi-line to appear like this"""
+                `Single backtick string`
             }
             Posts {
                 Post {
@@ -44,8 +54,8 @@ Document {
                 }
             }
             Image(src="scary.png") {
-                Src(src="scary.jpeg")
-                Src(src"scary.bmp")
+                Src(src="scary.jpeg");
+                Src(src"scary.bmp");
             }
         }
     }
