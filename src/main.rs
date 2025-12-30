@@ -7,20 +7,31 @@
  * SPDX-License-Identifier: MPL-2.0 
  */
 
-use std::io::prelude::*;
-use std::io::BufReader;
-use std::fs::File;
+#![allow(unused)]
+ 
+use std::{env, fs};
+
 
 fn main() -> std::io::Result<()> {
-    let f = File::open("log.txt")?;
-    let mut reader = BufReader::with_capacity(
-        1024 * 1024 * 8, 
-        f
-    );
-
-    let mut line = String::new();
-    let len = reader.read_line(&mut line)?;
-    println!("First line is {len} bytes long");
-    println!("First line: \"{line}\" !");
+    let args: Vec<String> = env::args().collect();
+    
+    if args.len() < 2 {
+        eprintln!("Usage: {} <file>", args[0]);
+        std::process::exit(1);
+    }
+    
+    let src = fs::read_to_string(&args[1])?;
+    
+    match rml_x::parse(&src) {
+        Ok(()) => {
+            println!("Parse successful!");
+            // println!("{:#?}", tree);
+        }
+        Err(e) => {
+            eprintln!("Parse error: {}", e);
+            std::process::exit(1);
+        }
+    }
+    
     Ok(())
 }

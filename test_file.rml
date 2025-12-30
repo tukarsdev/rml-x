@@ -1,62 +1,9 @@
 Document {
-    Version(1);
-    Head {
-        Script(src="main.rmx");
-        Link(rel="icon" href="favicon.ico");
-        Title { "Example Application" }
-    }
-    Body {
-        App {
-            Carousel {
-                "Hello 1"
-                "Hello 2"
-                "\"Hello World!\""
-                js```
-                // A code block with an indicated language
-                function main() {
-                    var x = true;
-                }
-                main()
-                ```
-                """
-                A multi line string
-                Containing
-                a bit of text
-                """
-                ```
-                A code block with no formatting
-                ```
-                'Alternative String'
-                '''
-                Alternative multi-line string
-                '''
-                """Legal for multi-line to appear like this"""
-                `Single backtick string`
-            }
-            Posts {
-                Post {
-                    Title { "Some things are bad" }
-                    Content {
-                        """
-                        A lot of things are really bad \
-                        or they're good
-                        it depends on perspective
-                        """
-                    }
-                }
-                Post {
-                    Title { "A really good post" }
-                    Content {
-                        """
-                        Pretend there is some really important insight here
-                        """
-                    }
-                }
-            }
-            Image(src="scary.png") {
-                Src(src="scary.jpeg");
-                Src(src"scary.bmp");
-            }
-        }
+    Block {
+        Text {}
+    },
+    Block {
+        Text {},
+        Text {},
     }
 }
