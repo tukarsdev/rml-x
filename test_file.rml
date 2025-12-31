@@ -7,3 +7,10 @@ Document {
         Text {},
     }
 }
+
+Document
+  Block
+    Text
+  Block
+    Text
+    Text
